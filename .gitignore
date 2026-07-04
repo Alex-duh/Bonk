@@ -1,0 +1,6 @@
+.build/
+dist/
+Bonk.app/
+.DS_Store
+.claude/settings.local.json
+.vscode/

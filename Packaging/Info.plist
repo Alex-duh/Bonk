@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.alexdu.bonk</string>
+    <key>CFBundleName</key>
+    <string>Bonk</string>
+    <key>CFBundleDisplayName</key>
+    <string>Bonk</string>
+    <key>CFBundleExecutable</key>
+    <string>Bonk</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleVersion</key>
+    <string>__VERSION__</string>
+    <key>CFBundleShortVersionString</key>
+    <string>__VERSION__</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>© 2026 Alex Du. GPL-3.0.</string>
+    <key>NSMotionUsageDescription</key>
+    <string>Bonk uses the accelerometer to detect knocks on your Mac chassis.</string>
+    <key>NSAccessibilityUsageDescription</key>
+    <string>Bonk needs Accessibility access to send keyboard shortcuts.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Bonk uses Apple Events to lock the screen, control media, and open apps.</string>
+</dict>
+</plist>
