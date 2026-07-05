@@ -39,6 +39,10 @@ codesign --verify --strict "$APP"
 echo "==> Creating $DMG..."
 STAGING="$(mktemp -d)/Bonk"
 mkdir -p "$STAGING/.background"
+# Pre-create .fseventsd with a no_log marker so macOS doesn't fill it with
+# event logs at unmount, and so we can hide/park it below
+mkdir -p "$STAGING/.fseventsd"
+touch "$STAGING/.fseventsd/no_log"
 cp -R "$APP" "$STAGING/"
 ln -s /Applications "$STAGING/Applications"
 swift Packaging/make_dmg_background.swift "$STAGING/.background/bg.png" >/dev/null \
@@ -69,6 +73,14 @@ tell application "Finder"
         set background picture of viewOptions to (POSIX file "$MOUNT/.background/bg.png" as alias)
         set position of item "Bonk.app" of container window to {165, 205}
         set position of item "Applications" of container window to {495, 205}
+        -- park housekeeping folders far outside the window for anyone
+        -- browsing with hidden files visible
+        try
+            set position of item ".background" of container window to {1400, 600}
+        end try
+        try
+            set position of item ".fseventsd" of container window to {1500, 600}
+        end try
         close
         open
         delay 1
@@ -76,6 +88,8 @@ tell application "Finder"
     end tell
 end tell
 OSA
+# Finder-hidden flag on top of the dotfile convention
+chflags hidden "$MOUNT/.background" "$MOUNT/.fseventsd" 2>/dev/null || true
 sync
 hdiutil detach "$MOUNT" -quiet
 hdiutil convert "$RW" -format UDZO -o "$DMG" >/dev/null
