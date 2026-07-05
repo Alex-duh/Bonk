@@ -28,6 +28,9 @@ if [ -f Packaging/logo.png ]; then
 else
     echo "    (no Packaging/logo.png — shipping without a custom icon)"
 fi
+# Menu bar template icons (vector; luminance→alpha conversion happens at runtime)
+cp Packaging/*.pdf "$APP/Contents/Resources/" 2>/dev/null \
+    || echo "    (no Packaging/*.pdf — menu bar falls back to ✊ emoji)"
 
 echo "==> Signing ($([ "$SIGN_IDENTITY" = "-" ] && echo ad-hoc || echo "$SIGN_IDENTITY"))..."
 codesign --force --deep --options runtime --sign "$SIGN_IDENTITY" "$APP"
@@ -42,8 +45,12 @@ rm -f "$DMG"
 hdiutil create -volname "Bonk" -srcfolder "$STAGING" -ov -format UDZO "$DMG" >/dev/null
 rm -rf "$(dirname "$STAGING")"
 
+# Stable-named copy — release uploads use this so the landing page's
+# /releases/latest/download/Bonk.dmg URL never changes (version lives in the tag)
+cp "$DMG" dist/Bonk.dmg
+
 echo ""
-echo "Done: $DMG"
+echo "Done: $DMG  (+ dist/Bonk.dmg for release uploads)"
 echo "  • Users open the .dmg and drag Bonk into Applications."
 if [ "$SIGN_IDENTITY" = "-" ]; then
     echo "  • Ad-hoc signed: first launch requires right-click → Open (see RELEASING.md)."

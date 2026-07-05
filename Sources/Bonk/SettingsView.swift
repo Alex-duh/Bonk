@@ -46,6 +46,9 @@ class BonkSettings: ObservableObject {
     @Published var testMode: Bool {
         didSet { UserDefaults.standard.set(testMode, forKey: "testMode") }
     }
+    // Pause — stop listening for knocks entirely. Deliberately not persisted:
+    // a fresh launch always starts detecting.
+    @Published var isPaused = false
     // Per-app overrides, stored as JSON
     @Published var appRules: [AppRule] {
         didSet {
@@ -104,6 +107,11 @@ class KnockLog: ObservableObject {
 // MARK: - SettingsView
 
 struct SettingsView: View {
+    // Observed so the command pickers re-render when a selection changes —
+    // hand-rolled Binding closures without observation leave the pickers
+    // visually stuck on their last-rendered value.
+    @ObservedObject private var settings = BonkSettings.shared
+
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
             VStack(alignment: .leading, spacing: 0) {
@@ -140,22 +148,20 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Knock Commands")
                 .fontWeight(.semibold)
+            Text("Each pattern can run any action — built-ins, keyboard shortcuts, apps, shell commands, or Shortcuts. These are just the defaults.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, 6)
             KnockRow(label: "Single knock",
-                     command: Binding(get: { BonkSettings.shared.singleKnockCommand },
-                                      set: { BonkSettings.shared.singleKnockCommand = $0 }),
-                     arg:     Binding(get: { BonkSettings.shared.singleKnockArg },
-                                      set: { BonkSettings.shared.singleKnockArg = $0 }))
+                     command: $settings.singleKnockCommand,
+                     arg:     $settings.singleKnockArg)
             KnockRow(label: "Double knock",
-                     command: Binding(get: { BonkSettings.shared.doubleKnockCommand },
-                                      set: { BonkSettings.shared.doubleKnockCommand = $0 }),
-                     arg:     Binding(get: { BonkSettings.shared.doubleKnockArg },
-                                      set: { BonkSettings.shared.doubleKnockArg = $0 }))
+                     command: $settings.doubleKnockCommand,
+                     arg:     $settings.doubleKnockArg)
             KnockRow(label: "Triple knock",
-                     command: Binding(get: { BonkSettings.shared.tripleKnockCommand },
-                                      set: { BonkSettings.shared.tripleKnockCommand = $0 }),
-                     arg:     Binding(get: { BonkSettings.shared.tripleKnockArg },
-                                      set: { BonkSettings.shared.tripleKnockArg = $0 }))
+                     command: $settings.tripleKnockCommand,
+                     arg:     $settings.tripleKnockArg)
         }
     }
 }
@@ -166,16 +172,40 @@ struct TestModeSection: View {
     @ObservedObject private var settings = BonkSettings.shared
 
     var body: some View {
-        Toggle(isOn: $settings.testMode) {
+        VStack(alignment: .leading, spacing: 12) {
+            LabeledSwitch(
+                title: "Pause detection",
+                caption: "Stop listening for knocks entirely. Same as “Pause Detection” in the menu bar; resets on relaunch.",
+                isOn: $settings.isPaused)
+            LabeledSwitch(
+                title: "Test mode",
+                caption: "Knocks are detected, flashed in the menu bar, and logged below — but no action fires. Great for tuning.",
+                isOn: $settings.testMode)
+        }
+    }
+}
+
+// Full-width row with the switch pinned to the trailing edge, so stacked
+// toggles line up regardless of label length.
+private struct LabeledSwitch: View {
+    let title: String
+    let caption: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Test mode").fontWeight(.semibold)
-                Text("Knocks are detected, flashed in the menu bar, and logged below — but no action fires. Great for tuning.")
+                Text(title).fontWeight(.semibold)
+                Text(caption)
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            Spacer()
+            Toggle("", isOn: $isOn)
+                .toggleStyle(.switch)
+                .labelsHidden()
         }
-        .toggleStyle(.switch)
     }
 }
 

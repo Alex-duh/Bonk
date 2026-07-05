@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Combine
 
 extension Notification.Name {
     static let bonkKnockDetected = Notification.Name("BonkKnockDetected")
@@ -13,10 +14,25 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private var statusItem: NSStatusItem!
     private var settingsWindowController: NSWindowController?
-    private var isPaused = false
+    private var cancellables = Set<AnyCancellable>()
+    // Set by setErrorState — accel.isAvailable is false at launch until the
+    // sensor attaches, so it can't be used to pick the icon directly.
+    private var sensorFailed = false
 
     private let accel    = AccelerometerManager.shared
     private let detector = KnockDetector.shared
+
+    // Icon set: bare fist when idle (slashed variant when paused); fist with
+    // 1/2/3 impact arcs flashed when a knock pattern is detected.
+    private lazy var baseIcon:   NSImage? = makeTemplateIcon("idle_fist", slashed: false)
+    private lazy var pausedIcon: NSImage? = makeTemplateIcon("idle_fist", slashed: true)
+    private lazy var knockIcons: [Int: NSImage] = {
+        var icons: [Int: NSImage] = [:]
+        for (count, name) in [1: "one_knock", 2: "two_knock", 3: "three_knock"] {
+            if let img = makeTemplateIcon(name, slashed: false) { icons[count] = img }
+        }
+        return icons
+    }()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -29,12 +45,25 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         buildStatusItem()
 
+        // Pause can be toggled from the menu bar or the settings window —
+        // this single subscriber keeps the icon and menu titles in sync.
+        BonkSettings.shared.$isPaused
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] paused in self?.applyPauseState(paused) }
+            .store(in: &cancellables)
+
         detector.onKnock = { [weak self] count, peaks in
             guard let self else { return }
-            let flash = count == 1 ? "1️⃣" : count == 2 ? "2️⃣" : "3️⃣"
-            self.statusItem.button?.title = flash
+            // Flash the impact-arc icon for the knock count, then restore
+            if let icon = self.knockIcons[min(count, 3)] {
+                self.statusItem.button?.image = icon
+                self.statusItem.button?.title = ""
+            } else {
+                self.statusItem.button?.image = nil
+                self.statusItem.button?.title = count == 1 ? "1️⃣" : count == 2 ? "2️⃣" : "3️⃣"
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                self.statusItem.button?.title = self.isPaused ? "✊💤" : "✊"
+                self.refreshIcon()
             }
             NotificationCenter.default.post(name: .bonkKnockDetected, object: nil)
             self.handleKnock(count: count, peaks: peaks)
@@ -45,10 +74,65 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         accel.start { [weak self] x, y, z, delta in
-            guard let self, !self.isPaused else { return }
+            guard let self, !BonkSettings.shared.isPaused else { return }
             // Don't fire actions while a calibration is collecting samples
             guard !self.accel.isCalibrating, !self.accel.isTapCalibrating else { return }
             self.detector.feed(x: x, y: y, z: z, delta: delta)
+        }
+    }
+
+    // MARK: - Menu bar icon
+
+    // Rasterizes a Packaging/*.pdf icon (bundled into Resources) and converts
+    // luminance → alpha, because template images render from the ALPHA channel:
+    // the PDFs' opaque white background would otherwise draw as a solid square.
+    // `slashed` overlays a diagonal line for the paused state.
+    private func makeTemplateIcon(_ resource: String, slashed: Bool) -> NSImage? {
+        guard let url = Bundle.main.url(forResource: resource, withExtension: "pdf"),
+              let source = NSImage(contentsOf: url) else { return nil }
+        let w = 40, h = 40   // rendered at 2× for a 20 pt menu bar slot
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h,
+            bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+            colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        source.draw(in: NSRect(x: 0, y: 0, width: w, height: h))
+        if slashed {
+            let path = NSBezierPath()
+            path.move(to: NSPoint(x: 3, y: 3))
+            path.line(to: NSPoint(x: Double(w) - 3, y: Double(h) - 3))
+            path.lineWidth = 3.5
+            path.lineCapStyle = .round
+            NSColor.black.setStroke()
+            path.stroke()
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        for y in 0..<h {
+            for x in 0..<w {
+                guard let c = rep.colorAt(x: x, y: y) else { continue }
+                let lum = 0.299 * c.redComponent + 0.587 * c.greenComponent + 0.114 * c.blueComponent
+                rep.setColor(NSColor(calibratedRed: 0, green: 0, blue: 0,
+                                     alpha: c.alphaComponent * (1 - lum)), atX: x, y: y)
+            }
+        }
+        let img = NSImage(size: NSSize(width: 20, height: 20))
+        img.addRepresentation(rep)
+        img.isTemplate = true   // adapts to menu bar theme like other apps
+        return img
+    }
+
+    // Single source of truth for the idle icon; falls back to the fist emoji
+    // if the icon asset is missing from the bundle.
+    private func refreshIcon() {
+        guard let button = statusItem.button else { return }
+        let paused = BonkSettings.shared.isPaused
+        if baseIcon != nil {
+            button.imagePosition = .imageLeft
+            button.image = paused ? pausedIcon : baseIcon
+            button.title = sensorFailed && !paused ? "⚠️" : ""
+        } else {
+            button.image = nil
+            button.title = sensorFailed && !paused ? "✊⚠️" : (paused ? "✊💤" : "✊")
         }
     }
 
@@ -56,8 +140,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func buildStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.title = "✊"
         statusItem.button?.toolTip = "Bonk"
+        refreshIcon()
 
         let menu = NSMenu()
         let statusLabel = NSMenuItem(title: "Bonk — Active", action: nil, keyEquivalent: "")
@@ -112,7 +196,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: - Error state
 
     private func setErrorState() {
-        statusItem.button?.title = "✊⚠️"
+        sensorFailed = true
+        refreshIcon()
         statusItem.menu?.item(withTag: 1)?.title = "Bonk — No Sensor"
         let alert = NSAlert()
         alert.messageText = "Accelerometer Not Available"
@@ -124,15 +209,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: - Menu actions
 
     @objc private func togglePause(_ sender: NSMenuItem) {
-        isPaused.toggle()
-        if isPaused {
-            sender.title = "Resume Detection"
-            statusItem.button?.title = "✊💤"
+        BonkSettings.shared.isPaused.toggle()   // UI updates via the $isPaused subscriber
+    }
+
+    private func applyPauseState(_ paused: Bool) {
+        refreshIcon()
+        if paused {
             statusItem.menu?.item(withTag: 1)?.title = "Bonk — Paused"
+            statusItem.menu?.item(withTag: 2)?.title = "Resume Detection"
         } else {
-            sender.title = "Pause Detection"
-            statusItem.button?.title = accel.isAvailable ? "✊" : "✊⚠️"
-            statusItem.menu?.item(withTag: 1)?.title = "Bonk — Active"
+            statusItem.menu?.item(withTag: 1)?.title = sensorFailed ? "Bonk — No Sensor" : "Bonk — Active"
+            statusItem.menu?.item(withTag: 2)?.title = "Pause Detection"
         }
     }
 

@@ -28,10 +28,39 @@ Then for each release:
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
-gh release create v1.0.0 dist/Bonk-1.0.0.dmg \
+gh release create v1.0.0 dist/Bonk.dmg \
   --title "Bonk 1.0.0" \
   --notes "First release. Knock on your MacBook to trigger any action — fully local, no network. Download the .dmg, drag to Applications, right-click → Open on first launch."
 ```
+
+Upload the **stable-named** `dist/Bonk.dmg` (the version is in the tag): the
+landing page and README link to
+`https://github.com/Alex-duh/Bonk/releases/latest/download/Bonk.dmg`, which
+always serves the newest release as long as the asset keeps that name.
+
+## Download tracking (no backend needed)
+
+GitHub counts every release-asset download automatically. Check anytime:
+
+```bash
+gh api repos/Alex-duh/Bonk/releases \
+  --jq '.[] | "\(.tag_name): \(.assets[] | "\(.name)=\(.download_count)")"'
+```
+
+Total across all releases as a badge (already in the README):
+`https://img.shields.io/github/downloads/Alex-duh/Bonk/total`
+
+For landing-page *visit* analytics later (separate from downloads), GoatCounter
+or Plausible are single-`<script>` options — but the app itself stays
+network-free either way.
+
+## Landing page
+
+The site lives in its own repo — https://github.com/Alex-duh/BonkLanding —
+deployed via Vercel. Its download button serves
+`releases/latest/download/Bonk.dmg` from THIS repo, so keep the asset name
+stable when publishing releases. If the Vercel URL differs from
+`bonk-landing.vercel.app`, update the Website link in this repo's README.
 
 (`gh auth login` first if you haven't.)
 

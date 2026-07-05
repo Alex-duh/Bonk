@@ -19,6 +19,8 @@ sed "s/__VERSION__/$VERSION/g" Packaging/Info.plist > Bonk.app/Contents/Info.pli
 if [ -f Packaging/logo.png ]; then
     bash Packaging/make_icns.sh Packaging/logo.png Bonk.app/Contents/Resources/AppIcon.icns
 fi
+# Menu bar template icons (vector; luminance→alpha conversion happens at runtime)
+cp Packaging/*.pdf Bonk.app/Contents/Resources/ 2>/dev/null || true
 
 echo "Signing Bonk.app (ad-hoc)..."
 codesign --force --deep --sign - Bonk.app
