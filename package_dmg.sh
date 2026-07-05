@@ -38,11 +38,48 @@ codesign --verify --strict "$APP"
 
 echo "==> Creating $DMG..."
 STAGING="$(mktemp -d)/Bonk"
-mkdir -p "$STAGING"
+mkdir -p "$STAGING/.background"
 cp -R "$APP" "$STAGING/"
 ln -s /Applications "$STAGING/Applications"
-rm -f "$DMG"
-hdiutil create -volname "Bonk" -srcfolder "$STAGING" -ov -format UDZO "$DMG" >/dev/null
+swift Packaging/make_dmg_background.swift "$STAGING/.background/bg.png" >/dev/null \
+    || echo "    (background generation failed — plain DMG)"
+
+# Build read-write, style the Finder window, then compress to the final image
+RW="dist/Bonk-rw.dmg"
+rm -f "$DMG" "$RW"
+hdiutil create -volname "Bonk" -srcfolder "$STAGING" -ov -format UDRW "$RW" >/dev/null
+MOUNT=$(hdiutil attach "$RW" -readwrite -noverify -noautoopen | grep -o "/Volumes/.*")
+# The volume mounts as "Bonk 1" etc. if another Bonk image is already mounted —
+# always address the disk by the name Finder actually gave this mount
+VOLNAME=$(basename "$MOUNT")
+
+# Icon layout + background (best effort — needs Finder automation permission)
+osascript >/dev/null <<OSA || echo "    (Finder styling skipped — grant Terminal → Automation → Finder and re-run)"
+tell application "Finder"
+    tell disk "$VOLNAME"
+        open
+        set current view of container window to icon view
+        set toolbar visible of container window to false
+        set statusbar visible of container window to false
+        set the bounds of container window to {200, 120, 860, 560}
+        set viewOptions to the icon view options of container window
+        set arrangement of viewOptions to not arranged
+        set icon size of viewOptions to 104
+        set text size of viewOptions to 13
+        set background picture of viewOptions to (POSIX file "$MOUNT/.background/bg.png" as alias)
+        set position of item "Bonk.app" of container window to {165, 205}
+        set position of item "Applications" of container window to {495, 205}
+        close
+        open
+        delay 1
+        close
+    end tell
+end tell
+OSA
+sync
+hdiutil detach "$MOUNT" -quiet
+hdiutil convert "$RW" -format UDZO -o "$DMG" >/dev/null
+rm -f "$RW"
 rm -rf "$(dirname "$STAGING")"
 
 # Stable-named copy — release uploads use this so the landing page's
