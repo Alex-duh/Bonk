@@ -52,9 +52,17 @@ Always use this script — never run `.build/debug/Bonk` directly. Running witho
 ## Key Technical Decisions
 
 ### Accelerometer (IOKit HID)
-- Device: `AppleSPUHIDDevice` matched with `kIOHIDDeviceUsagePageKey: 0xFF00, kIOHIDDeviceUsageKey: 3`
+- Device: `AppleSPUHIDDevice` matched with `kIOHIDDeviceUsagePageKey: 0xFF00, kIOHIDDeviceUsageKey: 3`,
+  then filtered to `kIOHIDTransportKey` containing "SPU" — the internal keyboard ALSO exposes a
+  vendor usage-3 device (108-byte reports) that must not be attached
 - Reports: 22 bytes, int32 LE at byte offsets 6/10/14 for x/y/z, divide by 65536 for g-force
-- Callback fires at ~100 Hz on the main run loop via `IOHIDDeviceRegisterInputReportCallback`
+- Callback fires at ~100 Hz on the main run loop via `IOHIDDeviceRegisterInputReportCallback`;
+  buffer sized from `kIOHIDMaxInputReportSizeKey`, never a hardcoded constant
+- **macOS 15 (Sequoia) does not stream SPU sensors by default** — the device attaches but sends
+  zero reports until `IOHIDDeviceOpen` + `kIOHIDReportIntervalKey = 10_000` (µs → 100 Hz) is set.
+  macOS 26 streams without it. Symptom of regression: "attached" in the log, then the 3 s timeout.
+- NOT gated by Input Monitoring (verified: works on a machine where it was never granted)
+- Diagnostics: attach/skip/open failures and a one-time first-report hex dump go to ~/Library/Logs/Bonk.log
 
 ### EMA Baseline (alpha = 0.02)
 ```

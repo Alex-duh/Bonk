@@ -138,12 +138,32 @@ class AccelerometerManager {
 
     private func attach(_ device: IOHIDDevice) {
         guard !deviceBuffers.contains(where: { $0.device == device }) else { return }
-        let product = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String ?? "unknown"
-        klog("accel: HID device attached: \(product)")
-        let buf = UnsafeMutablePointer<UInt8>.allocate(capacity: 22)
-        buf.initialize(repeating: 0, count: 22)
+        let product   = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String ?? "unknown"
+        let transport = IOHIDDeviceGetProperty(device, kIOHIDTransportKey as CFString) as? String ?? "?"
+
+        // The accelerometer lives on the SPU (Sensor Processing Unit) transport.
+        // The internal keyboard ALSO exposes a vendor usage-3 HID device (108-byte
+        // reports) that matches our dictionary — never attach to it.
+        guard transport.contains("SPU") else {
+            klog("accel: skipping matched device '\(product)' (transport=\(transport))")
+            return
+        }
+        klog("accel: HID device attached: '\(product)' transport=\(transport)")
+
+        // Open the device directly and ask for a 100 Hz stream. macOS 26 streams
+        // SPU sensor data by default, but Sequoia (15.x) stays silent until a
+        // client sets a report interval — without this the device attaches and
+        // never delivers a single report. Interval is in microseconds.
+        IOHIDDeviceOpen(device, IOOptionBits(kIOHIDOptionsTypeNone))
+        IOHIDDeviceSetProperty(device, kIOHIDReportIntervalKey as CFString, 10_000 as CFNumber)
+
+        // Buffer sized from the device's own max report size (fixed 22 would
+        // under-allocate for other models/firmwares)
+        let bufSize = max(IOHIDDeviceGetProperty(device, kIOHIDMaxInputReportSizeKey as CFString) as? Int ?? 22, 22)
+        let buf = UnsafeMutablePointer<UInt8>.allocate(capacity: bufSize)
+        buf.initialize(repeating: 0, count: bufSize)
         let ctx = Unmanaged.passUnretained(self).toOpaque()
-        IOHIDDeviceRegisterInputReportCallback(device, buf, 22, { ctx, _, _, _, _, report, length in
+        IOHIDDeviceRegisterInputReportCallback(device, buf, bufSize, { ctx, _, _, _, _, report, length in
             guard let ctx, length >= 15 else { return }
             Unmanaged<AccelerometerManager>.fromOpaque(ctx).takeUnretainedValue()
                 .parseReport(report, length: length)
