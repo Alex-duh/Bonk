@@ -56,6 +56,10 @@ class BonkSettings: ObservableObject {
     // Pause — stop listening for knocks entirely. Deliberately not persisted:
     // a fresh launch always starts detecting.
     @Published var isPaused = false
+    // Hide the Dock icon (menu-bar-only mode)
+    @Published var hideDock: Bool {
+        didSet { UserDefaults.standard.set(hideDock, forKey: "hideDock") }
+    }
     // Per-app overrides, stored as JSON
     @Published var appRules: [AppRule] {
         didSet {
@@ -80,6 +84,7 @@ class BonkSettings: ObservableObject {
         cooldownMs          = d.object(forKey: "cooldownMs")          != nil ? d.double(forKey: "cooldownMs")          : 1000.0
         maxSpikeDurationMs  = d.object(forKey: "maxSpikeDurationMs")  != nil ? d.double(forKey: "maxSpikeDurationMs")  : 120.0
         testMode            = d.bool(forKey: "testMode")
+        hideDock            = d.bool(forKey: "hideDock")
         if let data = d.data(forKey: "appRules"),
            let rules = try? JSONDecoder().decode([AppRule].self, from: data) {
             appRules = rules
@@ -113,6 +118,31 @@ class KnockLog: ObservableObject {
     func clear() { entries.removeAll() }
 }
 
+// MARK: - Bonk visual style (matches the website: warm paper, ink, vermilion)
+
+extension Color {
+    static let bonkPaper  = Color(red: 0.969, green: 0.953, blue: 0.925)  // #F7F3EC
+    static let bonkInk    = Color(red: 0.102, green: 0.086, blue: 0.078)  // #1A1614
+    static let bonkAccent = Color(red: 1.000, green: 0.302, blue: 0.180)  // #FF4D2E
+    static let bonkCard   = Color(red: 1.000, green: 0.992, blue: 0.976)  // #FFFDF9
+}
+
+private struct BonkCard: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.bonkCard)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.bonkInk.opacity(0.85), lineWidth: 1.5))
+    }
+}
+
+extension View {
+    func bonkCard() -> some View { modifier(BonkCard()) }
+}
+
 // MARK: - SettingsView
 
 struct SettingsView: View {
@@ -123,34 +153,35 @@ struct SettingsView: View {
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 14) {
                 headerSection
-                Divider().padding(.vertical, 12)
-                TestModeSection()
-                Divider().padding(.vertical, 12)
-                WaveformSection()
-                Divider().padding(.vertical, 12)
-                CalibrationSection()
-                Divider().padding(.vertical, 12)
-                commandSection
-                Divider().padding(.vertical, 12)
-                PerAppSection()
-                Divider().padding(.vertical, 12)
-                FineTuneSection()
-                Divider().padding(.vertical, 12)
-                AccessibilityStatusView()
-                Divider().padding(.vertical, 12)
-                KnockLogSection()
-                Spacer(minLength: 16)
+                TestModeSection().bonkCard()
+                WaveformSection().bonkCard()
+                CalibrationSection().bonkCard()
+                commandSection.bonkCard()
+                PerAppSection().bonkCard()
+                FineTuneSection().bonkCard()
+                AccessibilityStatusView().bonkCard()
+                KnockLogSection().bonkCard()
+                Spacer(minLength: 8)
             }
-            .padding(24)
+            .padding(20)
         }
+        .background(Color.bonkPaper)
         .frame(width: 540)
+        .tint(.bonkAccent)
+        .preferredColorScheme(.light)   // the paper look is single-theme, like the site
     }
 
     private var headerSection: some View {
-        Text("Bonk Settings")
-            .font(.title2.bold())
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            (Text("Bonk").foregroundColor(.bonkInk) + Text("!").foregroundColor(.bonkAccent))
+                .font(.system(size: 30, weight: .heavy, design: .rounded))
+            Text("knock on your MacBook. make it do things.")
+                .font(.caption)
+                .foregroundColor(.bonkInk.opacity(0.55))
+            Spacer()
+        }
     }
 
     private var commandSection: some View {
@@ -194,6 +225,10 @@ struct TestModeSection: View {
                 caption: "Knocks are detected, flashed in the menu bar, and logged below — but no action fires. Great for tuning.",
                 isOn: $settings.testMode)
             LaunchAtLoginSwitch()
+            LabeledSwitch(
+                title: "Hide from Dock",
+                caption: "Run as a menu-bar-only app with no Dock icon. The 👊 menu keeps working either way.",
+                isOn: $settings.hideDock)
         }
     }
 }
@@ -553,14 +588,13 @@ struct AccessibilityStatusView: View {
                 }
             }
             Spacer()
-            if !trusted {
-                Button("Open Settings") {
-                    NSWorkspace.shared.open(
-                        URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
-                    )
-                }
-                .font(.caption)
+            // Always available — handy for reviewing or re-granting the permission
+            Button(trusted ? "Accessibility Settings" : "Open Settings") {
+                NSWorkspace.shared.open(
+                    URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
+                )
             }
+            .font(.caption)
         }
         .padding(10)
         .background(trusted ? Color.green.opacity(0.08) : Color.red.opacity(0.08))

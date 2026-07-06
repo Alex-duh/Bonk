@@ -55,9 +55,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Regular app: shows in the Dock so people can pin it (LSUIElement=false)
-        NSApp.setActivationPolicy(.regular)
         buildMainMenu()
+        // Dock icon visible unless the user opts into menu-bar-only mode
+        BonkSettings.shared.$hideDock
+            .receive(on: DispatchQueue.main)
+            .sink { hide in
+                NSApp.setActivationPolicy(hide ? .accessory : .regular)
+                if !hide { NSApp.activate(ignoringOtherApps: true) }
+            }
+            .store(in: &cancellables)
 
         // Prompt for Accessibility — required for CGEvent keyboard shortcuts.
         // NOTE: every rebuild invalidates the app signature and resets this permission.
