@@ -58,11 +58,19 @@ Always use this script — never run `.build/debug/Bonk` directly. Running witho
 - Reports: 22 bytes, int32 LE at byte offsets 6/10/14 for x/y/z, divide by 65536 for g-force
 - Callback fires at ~100 Hz on the main run loop via `IOHIDDeviceRegisterInputReportCallback`;
   buffer sized from `kIOHIDMaxInputReportSizeKey`, never a hardcoded constant
-- **macOS 15 (Sequoia) does not stream SPU sensors by default** — the device attaches but sends
-  zero reports until `IOHIDDeviceOpen` + `kIOHIDReportIntervalKey = 10_000` (µs → 100 Hz) is set.
-  macOS 26 streams without it. Symptom of regression: "attached" in the log, then the 3 s timeout.
+- **Sample rate varies**: ~100 Hz spontaneous on macOS 26; setting `kIOHIDReportIntervalKey`
+  bumps to native ~800 Hz. So the EMA uses a fixed 0.5 s time constant (alpha derived from
+  measured dt, = 0.02 at 100 Hz) and the waveform/noise-calibration tick is decimated to
+  ~100 Hz. Never assume 100 Hz in new code.
+- **macOS 15 (Sequoia)**: device attaches unprivileged but may stream ZERO reports — prior art
+  (github.com/olvvier/apple-silicon-accelerometer, tested M3 Pro + 15.6) says HID access needs
+  root there; macOS 26 streams unprivileged. Mitigation attempt: if no reports 1.5 s after
+  attach, set `kIOHIDReportIntervalKey = 10_000` (rescue only — see rate note). If that fails,
+  Sequoia likely needs a privileged helper (unsolved).
 - NOT gated by Input Monitoring (verified: works on a machine where it was never granted)
-- Diagnostics: attach/skip/open failures and a one-time first-report hex dump go to ~/Library/Logs/Bonk.log
+- Diagnostics: attach/skip/open failures and a one-time first-report hex dump go to
+  ~/Library/Logs/Bonk.log. Terminal probe: `Bonk.app/Contents/MacOS/Bonk --probe` (5 s listen,
+  prints rate + first report hex; run plain and with sudo to isolate privilege issues).
 
 ### EMA Baseline (alpha = 0.02)
 ```

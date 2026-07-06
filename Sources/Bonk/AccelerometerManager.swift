@@ -9,7 +9,7 @@ import IOKit.hid
 
 private let kUsagePage: Int = 0xFF00
 private let kUsage:     Int = 3
-private let kEmaAlpha:  Double = 0.02  // slow-adapting baseline; ignores knock spikes
+private let kEmaTimeConstant: Double = 0.5  // s — baseline adapts slowly; ignores knock spikes
 
 let kWaveformCapacity = 300  // 3 seconds at 100 Hz — shared with WaveformCanvas
 
@@ -25,6 +25,8 @@ class AccelerometerManager {
 
     // EMA baseline — adapts slowly so the knock spike doesn't pull the floor up
     private var emaBaseline: Double?
+    private var lastSampleTime: Date?
+    private var lastWaveformAppend = Date.distantPast
 
     // Waveform ring buffer — main thread only, polled by WaveformView at 30 fps
     private(set) var waveformSamples: [Double] = []
@@ -150,12 +152,19 @@ class AccelerometerManager {
         }
         klog("accel: HID device attached: '\(product)' transport=\(transport)")
 
-        // Open the device directly and ask for a 100 Hz stream. macOS 26 streams
-        // SPU sensor data by default, but Sequoia (15.x) stays silent until a
-        // client sets a report interval — without this the device attaches and
-        // never delivers a single report. Interval is in microseconds.
+        // Open the device directly (harmless where the manager open sufficed)
         IOHIDDeviceOpen(device, IOOptionBits(kIOHIDOptionsTypeNone))
-        IOHIDDeviceSetProperty(device, kIOHIDReportIntervalKey as CFString, 10_000 as CFNumber)
+
+        // Rescue path: macOS 26 streams SPU data spontaneously (~100 Hz), but on
+        // macOS 15 the device can attach and stay silent. If nothing arrives
+        // within 1.5 s, request a report interval. NOTE: setting the property
+        // where streaming already works bumps the rate to native ~800 Hz — that's
+        // why it's a rescue, not a default (parseReport adapts to any rate).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+            guard let self, !self.isAvailable else { return }
+            klog("accel: no reports 1.5 s after attach — requesting 100 Hz report interval (macOS 15 rescue)")
+            IOHIDDeviceSetProperty(device, kIOHIDReportIntervalKey as CFString, 10_000 as CFNumber)
+        }
 
         // Buffer sized from the device's own max report size (fixed 22 would
         // under-allocate for other models/firmwares)
@@ -205,25 +214,36 @@ class AccelerometerManager {
             checkTimer?.invalidate()
         }
 
-        // EMA baseline — alpha=0.02 means a 0.5g spike shifts baseline by only 0.01g
+        // EMA baseline with a fixed ~0.5 s time constant regardless of sample
+        // rate — the sensor delivers ~100 Hz by default on macOS 26 but ~800 Hz
+        // once a report interval is requested (macOS 15 rescue path). A fixed
+        // per-sample alpha would change how fast gravity is tracked by 8×.
+        let now = Date()
+        let dt = lastSampleTime.map { min(max(now.timeIntervalSince($0), 0.0005), 0.1) } ?? 0.01
+        lastSampleTime = now
+        let alpha = min(0.5, dt / kEmaTimeConstant)   // = 0.02 at 100 Hz
         if emaBaseline == nil { emaBaseline = mag }
-        emaBaseline = kEmaAlpha * mag + (1 - kEmaAlpha) * emaBaseline!
+        emaBaseline = alpha * mag + (1 - alpha) * emaBaseline!
         let delta = abs(mag - emaBaseline!)
 
-        // Waveform ring buffer — most-recent sample always at the right end
-        waveformSamples.append(delta)
-        if waveformSamples.count > kWaveformCapacity { waveformSamples.removeFirst() }
-        latestDelta = delta
+        // Waveform + noise calibration tick at ~100 Hz regardless of sensor rate,
+        // so 300 samples always spans ~3 s
+        if now.timeIntervalSince(lastWaveformAppend) >= 0.009 {
+            lastWaveformAppend = now
+            waveformSamples.append(delta)
+            if waveformSamples.count > kWaveformCapacity { waveformSamples.removeFirst() }
+            latestDelta = delta
 
-        if isCalibrating {
-            calibrationSamples.append(delta)
-            if calibrationSamples.count >= kWaveformCapacity {
-                isCalibrating = false
-                let n = Double(calibrationSamples.count)
-                let mean = calibrationSamples.reduce(0, +) / n
-                let variance = calibrationSamples.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / n
-                let stddev = variance.squareRoot()
-                onCalibrationComplete?(mean + 3.0 * stddev)
+            if isCalibrating {
+                calibrationSamples.append(delta)
+                if calibrationSamples.count >= kWaveformCapacity {
+                    isCalibrating = false
+                    let n = Double(calibrationSamples.count)
+                    let mean = calibrationSamples.reduce(0, +) / n
+                    let variance = calibrationSamples.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / n
+                    let stddev = variance.squareRoot()
+                    onCalibrationComplete?(mean + 3.0 * stddev)
+                }
             }
         }
 

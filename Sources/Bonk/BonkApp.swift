@@ -204,7 +204,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu?.item(withTag: 1)?.title = "Bonk — No Sensor"
         let alert = NSAlert()
         alert.messageText = "Accelerometer Not Available"
-        alert.informativeText = "The accelerometer HID device was not found or access was denied.\n\nTo fix this:\n1. Open System Settings → Privacy & Security → Input Monitoring\n2. Add Bonk.app and toggle it ON\n3. Quit and rerun Bonk\n\nBonk requires an Apple Silicon MacBook (M1 or later)."
+        alert.informativeText = "The accelerometer sent no data.\n\n• Bonk needs an Apple Silicon MacBook (M1 or later) — desktops and Intel Macs have no accelerometer.\n• On macOS 15 (Sequoia) and earlier, the system may restrict this sensor to privileged processes. macOS 26 (Tahoe) or later is recommended.\n\nTo diagnose, run in Terminal:\n/Applications/Bonk.app/Contents/MacOS/Bonk --probe\n\nDetails land in ~/Library/Logs/Bonk.log"
         alert.alertStyle = .warning
         alert.runModal()
     }
