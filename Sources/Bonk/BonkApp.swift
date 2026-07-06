@@ -36,8 +36,28 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return icons
     }()
 
+    // Dock icon click (or reopen from Finder/Spotlight) brings up Settings
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        openSettings(nil)
+        return true
+    }
+
+    private func buildMainMenu() {
+        let main = NSMenu()
+        let appItem = NSMenuItem()
+        main.addItem(appItem)
+        let appMenu = NSMenu()
+        appMenu.addItem(NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ","))
+        appMenu.addItem(.separator())
+        appMenu.addItem(NSMenuItem(title: "Quit Bonk", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        appItem.submenu = appMenu
+        NSApp.mainMenu = main
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
+        // Regular app: shows in the Dock so people can pin it (LSUIElement=false)
+        NSApp.setActivationPolicy(.regular)
+        buildMainMenu()
 
         // Prompt for Accessibility — required for CGEvent keyboard shortcuts.
         // NOTE: every rebuild invalidates the app signature and resets this permission.

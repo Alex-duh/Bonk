@@ -21,7 +21,7 @@
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>LSUIElement</key>
-    <true/>
+    <false/>
     <key>NSHumanReadableCopyright</key>
     <string>© 2026 Alex Du. GPL-3.0.</string>
     <key>NSMotionUsageDescription</key>
