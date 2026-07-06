@@ -20,7 +20,7 @@
 
 ---
 
-Knock once, twice, or three times anywhere on your MacBook — palm rest, lid, next to the trackpad. Each pattern triggers **any action you choose**: single knock can skip tracks, double knock can switch tabs, triple knock can run a shell script — every pattern is fully remappable in Settings, per app if you want. No extra hardware: Bonk reads the accelerometer that's already inside every Apple Silicon MacBook.
+Knock up to four times in a row anywhere on your MacBook — palm rest, lid, next to the trackpad. Each pattern triggers **any action you choose**: single knock can skip tracks, double knock can switch tabs, triple knock can run a shell script — every pattern is fully remappable in Settings, per app if you want. No extra hardware: Bonk reads the accelerometer that's already inside every Apple Silicon MacBook.
 
 **100% local.** No backend, no network calls, no analytics, no account. Your knocks never leave your machine.
 
@@ -32,7 +32,7 @@ Knock once, twice, or three times anywhere on your MacBook — palm rest, lid, n
 4. Grant two permissions when asked (both are required for core function):
    - **Input Monitoring** — how Bonk reads the accelerometer (it's a HID input device).
    - **Accessibility** — how Bonk sends keyboard shortcuts on your behalf.
-5. A 👊 appears in your menu bar. Knock twice on your palm rest — your screen locks. That's just the out-of-the-box default: open **Settings** from the 👊 menu and point single/double/triple knock at any action from the table below.
+5. A 👊 appears in your menu bar. Knock twice on your palm rest — your screen locks. That's just the out-of-the-box default: open **Settings** from the 👊 menu and point each knock pattern (single through quad) at any action from the table below.
 
 > [!NOTE]
 > **Why the "unidentified developer" warning?** Bonk isn't notarized by Apple yet (that requires a $99/year developer account I can't afford 😔). The warning does **not** mean the app is unsafe — it means Apple hasn't scanned it. The entire source code is right here in this repo, and you can build it yourself with one command if you'd rather not trust the binary. To open it anyway: **right-click the app → Open → Open** (only needed the first time). If macOS says the app "is damaged", run `xattr -cr /Applications/Bonk.app` in Terminal once.
@@ -67,7 +67,7 @@ Different apps, different knocks. A rule like *"when **Terminal** is frontmost, 
 1. Apple Silicon MacBooks contain a MEMS accelerometer, exposed as an IOKit HID device (`AppleSPUHIDDevice`). Bonk reads it at ~100 Hz. (CoreMotion doesn't work on macOS — this is the only way in.)
 2. An exponential moving average (α = 0.02) tracks gravity + slow drift, so only *sudden* changes count. Tilting the laptop shifts the baseline; a knock spikes above it.
 3. A spike becomes a knock only if it's sharp (sustained vibration over ~120 ms — fans, desk wobble — is rejected), clears the sensitivity threshold, and isn't within 80 ms of the previous knock (sensor ringing).
-4. Knocks within a 450 ms window group into a pattern (single/double/triple), which dispatches your configured action — checked first against per-app rules for the frontmost app, then the global mapping.
+4. Knocks within a 450 ms window group into a pattern (single, double, triple, or quad), which dispatches your configured action — checked first against per-app rules for the frontmost app, then the global mapping.
 
 Everything runs in a single lightweight process on the main run loop; idle CPU usage is negligible.
 

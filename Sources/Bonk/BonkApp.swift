@@ -28,9 +28,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private lazy var pausedIcon: NSImage? = makeTemplateIcon("idle_fist", slashed: true)
     private lazy var knockIcons: [Int: NSImage] = {
         var icons: [Int: NSImage] = [:]
-        for (count, name) in [1: "one_knock", 2: "two_knock", 3: "three_knock"] {
+        // four_knock.pdf is optional — quad falls back to the triple-arc icon
+        for (count, name) in [1: "one_knock", 2: "two_knock", 3: "three_knock", 4: "four_knock"] {
             if let img = makeTemplateIcon(name, slashed: false) { icons[count] = img }
         }
+        if icons[4] == nil { icons[4] = icons[3] }
         return icons
     }()
 
@@ -55,12 +57,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         detector.onKnock = { [weak self] count, peaks in
             guard let self else { return }
             // Flash the impact-arc icon for the knock count, then restore
-            if let icon = self.knockIcons[min(count, 3)] {
+            if let icon = self.knockIcons[min(count, 4)] {
                 self.statusItem.button?.image = icon
                 self.statusItem.button?.title = ""
             } else {
                 self.statusItem.button?.image = nil
-                self.statusItem.button?.title = count == 1 ? "1️⃣" : count == 2 ? "2️⃣" : "3️⃣"
+                self.statusItem.button?.title = ["1️⃣", "2️⃣", "3️⃣", "4️⃣"][min(count, 4) - 1]
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                 self.refreshIcon()
@@ -173,6 +175,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             case 1: return (settings.singleKnockCommand, settings.singleKnockArg)
             case 2: return (settings.doubleKnockCommand, settings.doubleKnockArg)
             case 3: return (settings.tripleKnockCommand, settings.tripleKnockArg)
+            case 4: return (settings.quadKnockCommand, settings.quadKnockArg)
             default: return (Commands.none, "")
             }
         }()
@@ -184,7 +187,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             arg = rule.arg
             suffix = "  [\(rule.appName)]"
         }
-        let label = count == 1 ? "Single knock" : count == 2 ? "Double knock" : "Triple knock"
+        let label = ["Single knock", "Double knock", "Triple knock", "Quad knock"][min(count, 4) - 1]
         if settings.testMode {
             KnockLog.shared.add(label: label, peaks: peaks, command: "TEST — would run: \(cmd)\(suffix)")
             return

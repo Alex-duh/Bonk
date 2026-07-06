@@ -11,7 +11,7 @@ struct AppRule: Codable, Identifiable, Equatable {
     var command: String
     var arg: String
 
-    static let patternLabels = [1: "Single", 2: "Double", 3: "Triple"]
+    static let patternLabels = [1: "Single", 2: "Double", 3: "Triple", 4: "Quad"]
 }
 
 extension Array where Element == AppRule {

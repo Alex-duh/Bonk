@@ -113,12 +113,13 @@ class KnockDetector {
         let peaks = knockPeaks
         knockPeaks = []
         let count = peaks.count
-        guard count >= 1 && count <= 3 else {
-            status("ignored — \(count) knocks in one window (max 3)")
+        guard count >= 1 && count <= 4 else {
+            status("ignored — \(count) knocks in one window (max 4)")
             return
         }
         lastFireTime = Date()
-        status("fired: \(count == 1 ? "single" : count == 2 ? "double" : "triple") knock")
+        let name = ["single", "double", "triple", "quad"][count - 1]
+        status("fired: \(name) knock")
         onKnock?(count, peaks)
     }
 }

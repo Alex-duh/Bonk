@@ -17,6 +17,9 @@ class BonkSettings: ObservableObject {
     @Published var tripleKnockCommand: String {
         didSet { UserDefaults.standard.set(tripleKnockCommand, forKey: "tripleKnockCommand") }
     }
+    @Published var quadKnockCommand: String {
+        didSet { UserDefaults.standard.set(quadKnockCommand, forKey: "quadKnockCommand") }
+    }
     @Published var singleKnockArg: String {
         didSet { UserDefaults.standard.set(singleKnockArg, forKey: "singleKnockArg") }
     }
@@ -25,6 +28,9 @@ class BonkSettings: ObservableObject {
     }
     @Published var tripleKnockArg: String {
         didSet { UserDefaults.standard.set(tripleKnockArg, forKey: "tripleKnockArg") }
+    }
+    @Published var quadKnockArg: String {
+        didSet { UserDefaults.standard.set(quadKnockArg, forKey: "quadKnockArg") }
     }
     // Sensitivity threshold in g (set manually or by calibration)
     @Published var thresholdG: Double {
@@ -63,9 +69,11 @@ class BonkSettings: ObservableObject {
         singleKnockCommand  = d.string(forKey: "singleKnockCommand") ?? Commands.playPause
         doubleKnockCommand  = d.string(forKey: "doubleKnockCommand") ?? Commands.lockScreen
         tripleKnockCommand  = d.string(forKey: "tripleKnockCommand") ?? Commands.screenshot
+        quadKnockCommand    = d.string(forKey: "quadKnockCommand")   ?? Commands.none
         singleKnockArg      = d.string(forKey: "singleKnockArg")     ?? ""
         doubleKnockArg      = d.string(forKey: "doubleKnockArg")     ?? ""
         tripleKnockArg      = d.string(forKey: "tripleKnockArg")     ?? ""
+        quadKnockArg        = d.string(forKey: "quadKnockArg")       ?? ""
         thresholdG          = d.object(forKey: "thresholdG")          != nil ? d.double(forKey: "thresholdG")          : 0.30
         windowMs            = d.object(forKey: "windowMs")            != nil ? d.double(forKey: "windowMs")            : 450.0
         cooldownMs          = d.object(forKey: "cooldownMs")          != nil ? d.double(forKey: "cooldownMs")          : 1000.0
@@ -162,6 +170,9 @@ struct SettingsView: View {
             KnockRow(label: "Triple knock",
                      command: $settings.tripleKnockCommand,
                      arg:     $settings.tripleKnockArg)
+            KnockRow(label: "Quad knock",
+                     command: $settings.quadKnockCommand,
+                     arg:     $settings.quadKnockArg)
         }
     }
 }
@@ -727,7 +738,7 @@ private struct AppRuleRow: View {
                 appPicker
                     .frame(width: 140)
                 Picker("", selection: $rule.pattern) {
-                    ForEach([1, 2, 3], id: \.self) {
+                    ForEach([1, 2, 3, 4], id: \.self) {
                         Text(AppRule.patternLabels[$0] ?? "\($0)").tag($0)
                     }
                 }

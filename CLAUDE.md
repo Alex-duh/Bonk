@@ -81,7 +81,9 @@ duration check — which made the bug confusing). Do not reintroduce it.
 window shows it live under the waveform. Use it first when debugging detection.
 
 ### Sequence Window & Dispatch
-After the first valid knock, a timer runs for `windowMs` (default 450 ms); the accumulated count (1/2/3) dispatches. Knocks 4+ are silently dropped. Dispatch order in `BonkApp.handleKnock`:
+After each valid knock, the window timer restarts for `windowMs` (default 450 ms); when it
+fires, the accumulated count (1–4) dispatches. Quad defaults to "None"; 5+ knocks cancel the
+sequence. Dispatch order in `BonkApp.handleKnock`:
 1. Per-app rule for frontmost app's bundle ID + pattern (from `BonkSettings.appRules`) wins
 2. Otherwise global single/double/triple mapping
 3. Test mode (`BonkSettings.testMode`): log + menu flash only, nothing fires
@@ -123,7 +125,7 @@ AppleScript F-key fallbacks: Play/Pause=100 (F8), Next=101 (F9), Prev=98 (F7), V
 
 | Key | Default | Description |
 |---|---|---|
-| `singleKnockCommand` / `doubleKnockCommand` / `tripleKnockCommand` | Play/Pause, Lock Screen, Screenshot | + `…Arg` counterparts |
+| `singleKnockCommand` / `doubleKnockCommand` / `tripleKnockCommand` / `quadKnockCommand` | Play/Pause, Lock Screen, Screenshot, None | + `…Arg` counterparts |
 | `thresholdG` | `0.30` | Sensitivity threshold in g; set by calibration |
 | `windowMs` | `450` | Knock sequence window |
 | `cooldownMs` | `1000` | Dead-time after command fires |
