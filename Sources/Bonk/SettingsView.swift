@@ -64,6 +64,17 @@ class BonkSettings: ObservableObject {
     @Published var appearance: String {
         didSet { UserDefaults.standard.set(appearance, forKey: "appearance") }
     }
+    // Daily GitHub version check (the app's only network call, disclosed + toggleable)
+    @Published var updateCheckEnabled: Bool {
+        didSet { UserDefaults.standard.set(updateCheckEnabled, forKey: "updateCheckEnabled") }
+    }
+    // Lifetime knocks — drives the one-time "star us" prompt
+    @Published var totalKnocks: Int {
+        didSet { UserDefaults.standard.set(totalKnocks, forKey: "totalKnocks") }
+    }
+    @Published var starPromptDismissed: Bool {
+        didSet { UserDefaults.standard.set(starPromptDismissed, forKey: "starPromptDismissed") }
+    }
     // Per-app overrides, stored as JSON
     @Published var appRules: [AppRule] {
         didSet {
@@ -90,6 +101,9 @@ class BonkSettings: ObservableObject {
         testMode            = d.bool(forKey: "testMode")
         hideDock            = d.bool(forKey: "hideDock")
         appearance          = d.string(forKey: "appearance") ?? "system"
+        updateCheckEnabled  = d.object(forKey: "updateCheckEnabled") != nil ? d.bool(forKey: "updateCheckEnabled") : true
+        totalKnocks         = d.integer(forKey: "totalKnocks")
+        starPromptDismissed = d.bool(forKey: "starPromptDismissed")
         if let data = d.data(forKey: "appRules"),
            let rules = try? JSONDecoder().decode([AppRule].self, from: data) {
             appRules = rules
@@ -175,6 +189,7 @@ struct SettingsView: View {
         ScrollView(.vertical, showsIndicators: true) {
             VStack(alignment: .leading, spacing: 14) {
                 headerSection
+                StarPromptCard()   // applies its own card only when visible
                 TestModeSection().bonkCard()
                 WaveformSection().bonkCard()
                 CalibrationSection().bonkCard()
@@ -183,6 +198,16 @@ struct SettingsView: View {
                 FineTuneSection().bonkCard()
                 AccessibilityStatusView().bonkCard()
                 KnockLogSection().bonkCard()
+                HStack {
+                    Text("Bonk \(UpdateChecker.currentVersion)")
+                        .font(.caption)
+                        .foregroundColor(.bonkInk.opacity(0.45))
+                    Spacer()
+                    Link("Enjoying Bonk? ⭐ Star it on GitHub",
+                         destination: URL(string: "https://github.com/Alex-duh/Bonk")!)
+                        .font(.caption)
+                }
+                .padding(.horizontal, 4)
                 Spacer(minLength: 8)
             }
             .padding(20)
@@ -261,6 +286,43 @@ struct TestModeSection: View {
                 title: "Hide from Dock",
                 caption: "Run as a menu-bar-only app with no Dock icon. The 👊 menu keeps working either way.",
                 isOn: $settings.hideDock)
+            LabeledSwitch(
+                title: "Check for updates",
+                caption: "Once a day, ask GitHub whether a newer version exists. Nothing about you is sent — it's the app's only network request, and it's off with one flick.",
+                isOn: $settings.updateCheckEnabled)
+        }
+    }
+}
+
+// One-time "star us" card, earned after 50 knocks
+struct StarPromptCard: View {
+    @ObservedObject private var settings = BonkSettings.shared
+
+    var body: some View {
+        if settings.totalKnocks >= 50 && !settings.starPromptDismissed {
+            HStack(spacing: 12) {
+                Text("⭐")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(settings.totalKnocks) knocks and counting!").fontWeight(.semibold)
+                    Text("Enjoying Bonk? A GitHub star keeps it free and helps others find it.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Button("Star on GitHub") {
+                    NSWorkspace.shared.open(URL(string: "https://github.com/Alex-duh/Bonk")!)
+                    settings.starPromptDismissed = true
+                }
+                .buttonStyle(.borderedProminent)
+                Button {
+                    settings.starPromptDismissed = true
+                } label: {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(.borderless)
+                .help("Dismiss forever")
+            }
+            .bonkCard()
         }
     }
 }

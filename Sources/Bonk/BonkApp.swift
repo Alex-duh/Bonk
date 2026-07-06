@@ -101,6 +101,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             DispatchQueue.main.async { self?.setErrorState() }
         }
 
+        UpdateChecker.checkIfEnabled()
+
         accel.start { [weak self] x, y, z, delta in
             guard let self, !BonkSettings.shared.isPaused else { return }
             // Don't fire actions while a calibration is collecting samples
@@ -213,6 +215,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             arg = rule.arg
             suffix = "  [\(rule.appName)]"
         }
+        settings.totalKnocks += count
         let label = ["Single knock", "Double knock", "Triple knock", "Quad knock"][min(count, 4) - 1]
         if settings.testMode {
             KnockLog.shared.add(label: label, peaks: peaks, command: "TEST — would run: \(cmd)\(suffix)")
