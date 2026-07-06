@@ -27,8 +27,30 @@ enum SensorProbe {
 
     static func run() -> Never {
         let euid = geteuid()
-        print("Bonk sensor probe v2 — \(euid == 0 ? "running as root" : "not root (uid \(euid))"), macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
+        print("Bonk sensor probe v3 — \(euid == 0 ? "running as root" : "not root (uid \(euid))"), macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
         print("hardware: \(sysctlString("hw.model")) — \(sysctlString("machdep.cpu.brand_string"))")
+
+        // Driver wake sequence (the step competitors do that we were missing):
+        // set ReportInterval on the AppleSPUHIDDriver registry entries to start
+        // the SPU firmware streaming on models where the sensors are dormant.
+        var iter: io_iterator_t = 0
+        if IOServiceGetMatchingServices(kIOMainPortDefault,
+                                        IOServiceMatching("AppleSPUHIDDriver"),
+                                        &iter) == KERN_SUCCESS {
+            var ok = 0, failed = 0
+            var firstError: kern_return_t = 0
+            while case let service = IOIteratorNext(iter), service != 0 {
+                let r = IORegistryEntrySetCFProperty(service, "ReportInterval" as CFString, 8000 as CFNumber)
+                if r == KERN_SUCCESS { ok += 1 } else { failed += 1; if firstError == 0 { firstError = r } }
+                IOObjectRelease(service)
+            }
+            IOObjectRelease(iter)
+            var line = "driver wake: ReportInterval set on \(ok) AppleSPUHIDDriver node(s), \(failed) failed"
+            if failed > 0 { line += String(format: " (first error 0x%08x)", firstError) }
+            print(line)
+        } else {
+            print("driver wake: no AppleSPUHIDDriver services found")
+        }
 
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
         // Match the whole vendor page — we want every SPU sensor, not just accel

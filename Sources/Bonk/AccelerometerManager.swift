@@ -59,6 +59,7 @@ class AccelerometerManager {
         // Input Monitoring — confirmed empirically: it streams on a machine where
         // that permission was never granted. Don't add IOHIDRequestAccess here;
         // it only scares users with a keyboard-monitoring prompt.
+        wakeSPUDriver()
         openHIDManager()
         checkTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
             guard let self, !self.isAvailable else { return }
@@ -113,6 +114,34 @@ class AccelerometerManager {
     }
 
     // MARK: - IOKit setup
+
+    // On some models (e.g. M4 MacBook Air) the SPU sensors are dormant and
+    // IOHIDDeviceSetProperty on the client connection does nothing. Competitors
+    // (verified from Knock.app's binary: "driver wake sequence: matching
+    // AppleSPUHIDDriver" + IORegistryEntrySetCFProperty) wake the sensors by
+    // setting ReportInterval directly on the AppleSPUHIDDriver registry entries.
+    // 8000 µs = 125 Hz, matching what macOS itself uses where it's already awake.
+    private func wakeSPUDriver() {
+        var iter: io_iterator_t = 0
+        guard IOServiceGetMatchingServices(kIOMainPortDefault,
+                                           IOServiceMatching("AppleSPUHIDDriver"),
+                                           &iter) == KERN_SUCCESS else {
+            klog("accel: SPU driver wake — no AppleSPUHIDDriver services found")
+            return
+        }
+        var ok = 0, failed = 0
+        while case let service = IOIteratorNext(iter), service != 0 {
+            if IORegistryEntrySetCFProperty(service, "ReportInterval" as CFString,
+                                            8000 as CFNumber) == KERN_SUCCESS {
+                ok += 1
+            } else {
+                failed += 1
+            }
+            IOObjectRelease(service)
+        }
+        IOObjectRelease(iter)
+        klog("accel: SPU driver wake — ReportInterval set on \(ok) node(s), \(failed) failed")
+    }
 
     private func openHIDManager() {
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))

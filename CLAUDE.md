@@ -62,11 +62,17 @@ Always use this script — never run `.build/debug/Bonk` directly. Running witho
   bumps to native ~800 Hz. So the EMA uses a fixed 0.5 s time constant (alpha derived from
   measured dt, = 0.02 at 100 Hz) and the waveform/noise-calibration tick is decimated to
   ~100 Hz. Never assume 100 Hz in new code.
-- **macOS 15 (Sequoia) is a dead end**: the device attaches and opens fine but streams ZERO
-  reports — verified on M3 Pro / 15.7.7 with `--probe` both unprivileged AND as root, with the
-  report-interval poke applied. (Prior art worked with root on 15.6; 15.7.x apparently closed
-  that too.) Product requirement is therefore macOS 26+. The 1.5 s report-interval rescue in
-  attach() stays — harmless, and other 15.x builds may differ.
+- **THE WAKE SEQUENCE (critical)**: on many models (M4 MacBook Air confirmed) the SPU sensors
+  are dormant — the HID device attaches/opens fine but streams ZERO reports, and
+  `IOHIDDeviceSetProperty` on the client connection does nothing. The fix (reverse-engineered
+  from Knock.app's binary — "driver wake sequence: matching AppleSPUHIDDriver"):
+  `IOServiceGetMatchingServices(IOServiceMatching("AppleSPUHIDDriver"))` then
+  `IORegistryEntrySetCFProperty(service, "ReportInterval", 8000)` on every node. Works
+  unprivileged. Implemented in `AccelerometerManager.wakeSPUDriver()`, called before opening
+  the HID manager; the probe prints the wake result. Machines where macOS already runs the
+  sensor (this dev MacBook Pro) never needed it — which masked the bug during development.
+- macOS 15 (Sequoia): streamed nothing even as root on 15.7.7 *before* the wake sequence
+  existed; untested with it — have Sequoia users rerun `--probe` before assuming unsupported.
 - NOT gated by Input Monitoring (verified: works on a machine where it was never granted)
 - Diagnostics: attach/skip/open failures and a one-time first-report hex dump go to
   ~/Library/Logs/Bonk.log. Terminal probe: `Bonk.app/Contents/MacOS/Bonk --probe` (5 s listen,
