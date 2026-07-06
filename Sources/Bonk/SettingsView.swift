@@ -119,12 +119,27 @@ class KnockLog: ObservableObject {
 }
 
 // MARK: - Bonk visual style (matches the website: warm paper, ink, vermilion)
+// Colors are appearance-aware: warm paper in light mode, warm near-black in dark.
+
+private func bonkDynamic(light: NSColor, dark: NSColor) -> Color {
+    Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+    })
+}
 
 extension Color {
-    static let bonkPaper  = Color(red: 0.969, green: 0.953, blue: 0.925)  // #F7F3EC
-    static let bonkInk    = Color(red: 0.102, green: 0.086, blue: 0.078)  // #1A1614
-    static let bonkAccent = Color(red: 1.000, green: 0.302, blue: 0.180)  // #FF4D2E
-    static let bonkCard   = Color(red: 1.000, green: 0.992, blue: 0.976)  // #FFFDF9
+    static let bonkPaper = bonkDynamic(
+        light: NSColor(red: 0.969, green: 0.953, blue: 0.925, alpha: 1),   // #F7F3EC
+        dark:  NSColor(red: 0.086, green: 0.071, blue: 0.059, alpha: 1))   // #161210
+    static let bonkInk = bonkDynamic(
+        light: NSColor(red: 0.102, green: 0.086, blue: 0.078, alpha: 1),   // #1A1614
+        dark:  NSColor(red: 0.949, green: 0.929, blue: 0.894, alpha: 1))   // #F2EDE4
+    static let bonkAccent = bonkDynamic(
+        light: NSColor(red: 1.000, green: 0.302, blue: 0.180, alpha: 1),   // #FF4D2E
+        dark:  NSColor(red: 1.000, green: 0.373, blue: 0.255, alpha: 1))   // #FF5F41 — a touch brighter on dark
+    static let bonkCard = bonkDynamic(
+        light: NSColor(red: 1.000, green: 0.992, blue: 0.976, alpha: 1),   // #FFFDF9
+        dark:  NSColor(red: 0.133, green: 0.114, blue: 0.098, alpha: 1))   // #221D19
 }
 
 private struct BonkCard: ViewModifier {
@@ -170,7 +185,6 @@ struct SettingsView: View {
         .background(Color.bonkPaper)
         .frame(width: 540)
         .tint(.bonkAccent)
-        .preferredColorScheme(.light)   // the paper look is single-theme, like the site
     }
 
     private var headerSection: some View {
