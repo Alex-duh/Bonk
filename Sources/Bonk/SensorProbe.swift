@@ -10,9 +10,19 @@ enum SensorProbe {
     private static var reportCount = 0
     private static var loggedFirst = false
 
+    private static func sysctlString(_ name: String) -> String {
+        var size = 0
+        sysctlbyname(name, nil, &size, nil, 0)
+        guard size > 0 else { return "?" }
+        var buf = [CChar](repeating: 0, count: size)
+        sysctlbyname(name, &buf, &size, nil, 0)
+        return String(cString: buf)
+    }
+
     static func run() -> Never {
         let euid = geteuid()
         print("Bonk sensor probe — \(euid == 0 ? "running as root" : "not root (uid \(euid))"), macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
+        print("hardware: \(sysctlString("hw.model")) — \(sysctlString("machdep.cpu.brand_string"))")
 
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
         let matching: [String: Any] = [
