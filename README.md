@@ -29,15 +29,16 @@ Knock up to four times in a row anywhere on your MacBook — palm rest, lid, nex
 1. Download `Bonk-x.y.z.dmg` from the [latest release](https://github.com/Alex-duh/Bonk/releases/latest).
 2. Open it and drag **Bonk** into **Applications**.
 3. First launch: **right-click Bonk.app → Open → Open**. *(Once. See below for why.)*
-4. Grant two permissions when asked (both are required for core function):
-   - **Input Monitoring** — how Bonk reads the accelerometer (it's a HID input device).
-   - **Accessibility** — how Bonk sends keyboard shortcuts on your behalf.
+4. Grant **Accessibility** when asked — it's how Bonk presses keyboard shortcuts on your behalf (and how it notices you're typing so it can ignore those vibrations).
 5. A 👊 appears in your menu bar. Knock twice on your palm rest — your screen locks. That's just the out-of-the-box default: open **Settings** from the 👊 menu and point each knock pattern (single through quad) at any action from the table below.
 
 > [!NOTE]
 > **Why the "unidentified developer" warning?** Bonk isn't notarized by Apple yet (that requires a $99/year developer account I can't afford 😔). The warning does **not** mean the app is unsafe — it means Apple hasn't scanned it. The entire source code is right here in this repo, and you can build it yourself with one command if you'd rather not trust the binary. To open it anyway: **right-click the app → Open → Open** (only needed the first time). If macOS says the app "is damaged", run `xattr -cr /Applications/Bonk.app` in Terminal once.
 
-**Requirements:** Apple Silicon MacBook (M1 or later — the accelerometer isn't exposed on Intel Macs or desktops), macOS 13+.
+**Requirements:** Apple Silicon MacBook (M1 or later) running **macOS 26 (Tahoe) or newer**. Intel Macs and desktops have no accelerometer. macOS 13–15 (Sequoia and earlier) have the sensor but block apps from reading it at the system level — verified through 15.7, even with root — so Bonk cannot work there. Check any Mac with:
+```bash
+/Applications/Bonk.app/Contents/MacOS/Bonk --probe
+```
 
 ## What can a knock do?
 
@@ -85,7 +86,7 @@ bash build_app.sh        # build + bundle + launch (needs Xcode Command Line Too
 
 | Problem | Fix |
 |---|---|
-| 👊⚠️ in the menu bar | Accelerometer not found — enable Bonk under **System Settings → Privacy & Security → Input Monitoring**, then relaunch. Intel Macs and desktops have no accelerometer. |
+| 👊⚠️ in the menu bar | Sensor sent no data — usually macOS 15 or earlier (Bonk needs macOS 26+), an Intel Mac, or a desktop. Run `/Applications/Bonk.app/Contents/MacOS/Bonk --probe` in Terminal to check. |
 | Knocks detected but nothing happens | Grant **Accessibility** (Privacy & Security → Accessibility). Also check Test mode isn't on. |
 | Missed knocks | Run **Knock to Calibrate**, or lower the threshold slider. Knock near the trackpad — it's closest to the sensor. |
 | False triggers | Raise the threshold or extend the cooldown. Setting things down on the desk hard can look like a knock. |

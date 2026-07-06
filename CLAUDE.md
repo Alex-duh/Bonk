@@ -4,7 +4,8 @@ Free open-source macOS menubar app. Detects knocks on the MacBook chassis via th
 
 ## Stack
 - Swift 5.9 / Swift Package Manager
-- macOS 13+ (Ventura) target; developed on Apple M4 / macOS 26
+- Build target macOS 13+ (so older Macs can launch it and see a friendly explanation), but the
+  sensor only streams on **macOS 26 (Tahoe)+** — that's the real requirement. Developed on M4/26.
 - **IOKit HID** for accelerometer — NOT CoreMotion (CMMotionManager is unavailable on Apple Silicon macOS)
 - AppKit for menubar (`NSStatusItem` + `NSMenu`)
 - SwiftUI for settings window
@@ -43,7 +44,6 @@ Always use this script — never run `.build/debug/Bonk` directly. Running witho
 
 | Permission | Where to grant | Resets? |
 |---|---|---|
-| Input Monitoring | System Settings → Privacy & Security → Input Monitoring | No — survives rebuilds |
 | Accessibility | System Settings → Privacy & Security → Accessibility | **YES — resets every rebuild** |
 | Automation (System Events) | Auto-prompted on first AppleScript use | No |
 
@@ -62,11 +62,11 @@ Always use this script — never run `.build/debug/Bonk` directly. Running witho
   bumps to native ~800 Hz. So the EMA uses a fixed 0.5 s time constant (alpha derived from
   measured dt, = 0.02 at 100 Hz) and the waveform/noise-calibration tick is decimated to
   ~100 Hz. Never assume 100 Hz in new code.
-- **macOS 15 (Sequoia)**: device attaches unprivileged but may stream ZERO reports — prior art
-  (github.com/olvvier/apple-silicon-accelerometer, tested M3 Pro + 15.6) says HID access needs
-  root there; macOS 26 streams unprivileged. Mitigation attempt: if no reports 1.5 s after
-  attach, set `kIOHIDReportIntervalKey = 10_000` (rescue only — see rate note). If that fails,
-  Sequoia likely needs a privileged helper (unsolved).
+- **macOS 15 (Sequoia) is a dead end**: the device attaches and opens fine but streams ZERO
+  reports — verified on M3 Pro / 15.7.7 with `--probe` both unprivileged AND as root, with the
+  report-interval poke applied. (Prior art worked with root on 15.6; 15.7.x apparently closed
+  that too.) Product requirement is therefore macOS 26+. The 1.5 s report-interval rescue in
+  attach() stays — harmless, and other 15.x builds may differ.
 - NOT gated by Input Monitoring (verified: works on a machine where it was never granted)
 - Diagnostics: attach/skip/open failures and a one-time first-report hex dump go to
   ~/Library/Logs/Bonk.log. Terminal probe: `Bonk.app/Contents/MacOS/Bonk --probe` (5 s listen,
@@ -169,4 +169,4 @@ AppleScript F-key fallbacks: Play/Pause=100 (F8), Next=101 (F9), Prev=98 (F7), V
 
 ## Debug
 Log: `~/Library/Logs/Bonk.log` — every command call logs name + `trusted=true/false` + any errors.
-Accelerometer not detected → check Input Monitoring. Commands silently failing → check Accessibility; rebuild invalidates it.
+Accelerometer not detected → run `Bonk --probe`; macOS 15 and earlier block the sensor entirely (Input Monitoring is irrelevant — folklore from early development). Commands silently failing → check Accessibility; rebuild invalidates it.
