@@ -60,6 +60,10 @@ class BonkSettings: ObservableObject {
     @Published var hideDock: Bool {
         didSet { UserDefaults.standard.set(hideDock, forKey: "hideDock") }
     }
+    // Settings window appearance: "system" (default), "light", or "dark"
+    @Published var appearance: String {
+        didSet { UserDefaults.standard.set(appearance, forKey: "appearance") }
+    }
     // Per-app overrides, stored as JSON
     @Published var appRules: [AppRule] {
         didSet {
@@ -85,6 +89,7 @@ class BonkSettings: ObservableObject {
         maxSpikeDurationMs  = d.object(forKey: "maxSpikeDurationMs")  != nil ? d.double(forKey: "maxSpikeDurationMs")  : 120.0
         testMode            = d.bool(forKey: "testMode")
         hideDock            = d.bool(forKey: "hideDock")
+        appearance          = d.string(forKey: "appearance") ?? "system"
         if let data = d.data(forKey: "appRules"),
            let rules = try? JSONDecoder().decode([AppRule].self, from: data) {
             appRules = rules
@@ -185,16 +190,29 @@ struct SettingsView: View {
         .background(Color.bonkPaper)
         .frame(width: 540)
         .tint(.bonkAccent)
+        // nil = follow the system appearance (the default)
+        .preferredColorScheme(settings.appearance == "light" ? .light
+                              : settings.appearance == "dark" ? .dark : nil)
     }
 
     private var headerSection: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
+        HStack(alignment: .center, spacing: 10) {
             (Text("Bonk").foregroundColor(.bonkInk) + Text("!").foregroundColor(.bonkAccent))
                 .font(.system(size: 30, weight: .heavy, design: .rounded))
             Text("knock on your MacBook. make it do things.")
                 .font(.caption)
                 .foregroundColor(.bonkInk.opacity(0.55))
             Spacer()
+            Picker("", selection: $settings.appearance) {
+                Image(systemName: "circle.lefthalf.filled").tag("system")
+                    .help("Match the system appearance")
+                Image(systemName: "sun.max").tag("light")
+                Image(systemName: "moon").tag("dark")
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(width: 108)
+            .help("Appearance: system / light / dark")
         }
     }
 
