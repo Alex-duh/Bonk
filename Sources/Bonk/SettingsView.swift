@@ -2,6 +2,7 @@ import SwiftUI
 import Combine
 import AppKit
 import UniformTypeIdentifiers
+import ServiceManagement
 
 // MARK: - BonkSettings
 
@@ -192,7 +193,31 @@ struct TestModeSection: View {
                 title: "Test mode",
                 caption: "Knocks are detected, flashed in the menu bar, and logged below — but no action fires. Great for tuning.",
                 isOn: $settings.testMode)
+            LaunchAtLoginSwitch()
         }
+    }
+}
+
+// Launch at login via SMAppService — the service itself is the source of
+// truth, so nothing is stored in UserDefaults.
+private struct LaunchAtLoginSwitch: View {
+    @State private var enabled = SMAppService.mainApp.status == .enabled
+
+    var body: some View {
+        LabeledSwitch(
+            title: "Launch at login",
+            caption: "Start Bonk automatically when you log in to your Mac.",
+            isOn: Binding(
+                get: { enabled },
+                set: { wantOn in
+                    do {
+                        if wantOn { try SMAppService.mainApp.register() }
+                        else      { try SMAppService.mainApp.unregister() }
+                    } catch {
+                        klog("launch at login toggle failed: \(error)")
+                    }
+                    enabled = SMAppService.mainApp.status == .enabled
+                }))
     }
 }
 

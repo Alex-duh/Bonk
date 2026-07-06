@@ -53,9 +53,14 @@ class AccelerometerManager {
 
     func start(callback: @escaping AccelCallback) {
         userCallback = callback
+        // NOTE: the SPU accelerometer (vendor usage page 0xFF00) is NOT gated by
+        // Input Monitoring — confirmed empirically: it streams on a machine where
+        // that permission was never granted. Don't add IOHIDRequestAccess here;
+        // it only scares users with a keyboard-monitoring prompt.
         openHIDManager()
         checkTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
             guard let self, !self.isAvailable else { return }
+            klog("accel: no HID device matched after 3 s (usagePage 0xFF00 usage 3) — sensor absent or not exposed on this Mac/OS")
             self.onUnavailable?()
         }
     }
@@ -124,12 +129,17 @@ class AccelerometerManager {
             Unmanaged<AccelerometerManager>.fromOpaque(ctx).takeUnretainedValue().detach(device)
         }, ctx)
         IOHIDManagerScheduleWithRunLoop(manager, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
-        IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
+        let result = IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
+        if result != kIOReturnSuccess {
+            klog(String(format: "accel: IOHIDManagerOpen failed 0x%08x (permission or driver issue)", result))
+        }
         hidManager = manager
     }
 
     private func attach(_ device: IOHIDDevice) {
         guard !deviceBuffers.contains(where: { $0.device == device }) else { return }
+        let product = IOHIDDeviceGetProperty(device, kIOHIDProductKey as CFString) as? String ?? "unknown"
+        klog("accel: HID device attached: \(product)")
         let buf = UnsafeMutablePointer<UInt8>.allocate(capacity: 22)
         buf.initialize(repeating: 0, count: 22)
         let ctx = Unmanaged.passUnretained(self).toOpaque()
@@ -152,8 +162,17 @@ class AccelerometerManager {
 
     // MARK: - Data parsing
 
+    private var loggedFirstReport = false
+
     private func parseReport(_ report: UnsafeMutablePointer<UInt8>, length: CFIndex) {
         let data = Data(bytes: report, count: min(Int(length), 64))
+        // One-time hex dump — if a Mac model uses a different report layout,
+        // this line in ~/Library/Logs/Bonk.log is how we find out
+        if !loggedFirstReport {
+            loggedFirstReport = true
+            let hex = data.map { String(format: "%02x", $0) }.joined(separator: " ")
+            klog("accel: first report length=\(length) data=[\(hex)]")
+        }
         guard data.count >= 18 else { return }
 
         let x = Double(readInt32LE(data, offset: 6))  / 65536.0

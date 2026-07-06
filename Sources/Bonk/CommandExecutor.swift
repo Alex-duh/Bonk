@@ -5,7 +5,7 @@ import Darwin
 private let logURL = URL(fileURLWithPath: NSHomeDirectory())
     .appendingPathComponent("Library/Logs/Bonk.log")
 
-private func klog(_ msg: String) {
+func klog(_ msg: String) {
     let line = "\(Date()) \(msg)\n"
     if let data = line.data(using: .utf8) {
         if FileManager.default.fileExists(atPath: logURL.path) {
