@@ -35,7 +35,7 @@ Knock up to four times in a row anywhere on your MacBook — palm rest, lid, nex
 > [!NOTE]
 > **Why the "unidentified developer" warning?** Bonk isn't notarized by Apple yet (that requires a $99/year developer account I can't afford 😔). The warning does **not** mean the app is unsafe — it means Apple hasn't scanned it. The entire source code is right here in this repo, and you can build it yourself with one command if you'd rather not trust the binary. To open it anyway: **right-click the app → Open → Open** (only needed the first time). If macOS says the app "is damaged", run `xattr -cr /Applications/Bonk.app` in Terminal once.
 
-**Requirements:** Apple Silicon MacBook (M1 or later) running **macOS 26 (Tahoe) or newer**. Intel Macs and desktops have no accelerometer. macOS 13–15 (Sequoia and earlier) have the sensor but block apps from reading it at the system level — verified through 15.7, even with root — so Bonk cannot work there. A few models reportedly don't expose the sensor at all (e.g. 2020 M1 MacBook Pro). Check any Mac in 5 seconds with:
+**Requirements:** Apple Silicon MacBook (M1 or later), macOS 13+ (verified on Sequoia 15.7 and Tahoe 26). Intel Macs and desktops have no accelerometer, and a few models reportedly don't expose the sensor (e.g. 2020 M1 MacBook Pro). Check any Mac in 5 seconds with:
 ```bash
 /Applications/Bonk.app/Contents/MacOS/Bonk --probe
 ```
@@ -86,7 +86,7 @@ bash build_app.sh        # build + bundle + launch (needs Xcode Command Line Too
 
 | Problem | Fix |
 |---|---|
-| 👊⚠️ in the menu bar | Sensor sent no data — usually macOS 15 or earlier (Bonk needs macOS 26+), an Intel Mac, or a desktop. Run `/Applications/Bonk.app/Contents/MacOS/Bonk --probe` in Terminal to check. |
+| 👊⚠️ in the menu bar | Sensor sent no data — likely an Intel Mac, a desktop, or one of the few models without the sensor. Run `/Applications/Bonk.app/Contents/MacOS/Bonk --probe` in Terminal to check, and make sure you're on the latest release. |
 | Knocks detected but nothing happens | Grant **Accessibility** (Privacy & Security → Accessibility). Also check Test mode isn't on. |
 | Missed knocks | Run **Knock to Calibrate**, or lower the threshold slider. Knock near the trackpad — it's closest to the sensor. |
 | False triggers | Raise the threshold or extend the cooldown. Setting things down on the desk hard can look like a knock. |

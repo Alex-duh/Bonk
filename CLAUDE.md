@@ -4,8 +4,8 @@ Free open-source macOS menubar app. Detects knocks on the MacBook chassis via th
 
 ## Stack
 - Swift 5.9 / Swift Package Manager
-- Build target macOS 13+ (so older Macs can launch it and see a friendly explanation), but the
-  sensor only streams on **macOS 26 (Tahoe)+** — that's the real requirement. Developed on M4/26.
+- macOS 13+ / Apple Silicon MacBook (sensor verified on Sequoia 15.7 and Tahoe 26, thanks to
+  the SPU driver wake sequence). Developed on M4/26.
 - **IOKit HID** for accelerometer — NOT CoreMotion (CMMotionManager is unavailable on Apple Silicon macOS)
 - AppKit for menubar (`NSStatusItem` + `NSMenu`)
 - SwiftUI for settings window
@@ -71,8 +71,9 @@ Always use this script — never run `.build/debug/Bonk` directly. Running witho
   unprivileged. Implemented in `AccelerometerManager.wakeSPUDriver()`, called before opening
   the HID manager; the probe prints the wake result. Machines where macOS already runs the
   sensor (this dev MacBook Pro) never needed it — which masked the bug during development.
-- macOS 15 (Sequoia): streamed nothing even as root on 15.7.7 *before* the wake sequence
-  existed; untested with it — have Sequoia users rerun `--probe` before assuming unsupported.
+- macOS 15 (Sequoia): **works with the wake sequence** (confirmed on M3 Pro / 15.7.7, which
+  streamed nothing — even as root — before the wake existed). The wake fixed both Sequoia
+  and dormant-Tahoe (M4 Air) cases; requirement is simply macOS 13+ / Apple Silicon MacBook.
 - NOT gated by Input Monitoring (verified: works on a machine where it was never granted)
 - Diagnostics: attach/skip/open failures and a one-time first-report hex dump go to
   ~/Library/Logs/Bonk.log. Terminal probe: `Bonk.app/Contents/MacOS/Bonk --probe` (5 s listen,

@@ -204,7 +204,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu?.item(withTag: 1)?.title = "Bonk — No Sensor"
         let alert = NSAlert()
         alert.messageText = "Accelerometer Not Available"
-        alert.informativeText = "The accelerometer sent no data.\n\nBonk requires an Apple Silicon MacBook (M1 or later) running macOS 26 (Tahoe) or newer.\n\nmacOS 15 (Sequoia) and earlier block this sensor at the system level — no setting or permission can enable it (verified through 15.7, even as root).\n\nTo check your Mac, run in Terminal:\n/Applications/Bonk.app/Contents/MacOS/Bonk --probe\n\nDetails: ~/Library/Logs/Bonk.log"
+        alert.informativeText = "The accelerometer sent no data.\n\nBonk requires an Apple Silicon MacBook (M1 or later). Intel Macs and desktops have no accelerometer, and a few laptop models don't expose it.\n\nTo check your Mac, run in Terminal:\n/Applications/Bonk.app/Contents/MacOS/Bonk --probe\n\nDetails: ~/Library/Logs/Bonk.log"
         alert.alertStyle = .warning
         alert.runModal()
     }
