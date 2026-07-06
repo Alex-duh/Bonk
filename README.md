@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://github.com/Alex-duh/Bonk/releases/latest/download/Bonk.dmg"><b>⬇ Download Bonk.dmg</b></a>
   ·
-  <a href="https://bonk-landing.vercel.app">Website</a>
+  <a href="https://trybonk.vercel.app/">Website</a>
   ·
   <img src="https://img.shields.io/github/downloads/Alex-duh/Bonk/total?color=FF4D2E&label=downloads" alt="Downloads">
 </p>
@@ -35,7 +35,7 @@ Knock once, twice, or three times anywhere on your MacBook — palm rest, lid, n
 5. A 👊 appears in your menu bar. Knock twice on your palm rest — your screen locks. That's just the out-of-the-box default: open **Settings** from the 👊 menu and point single/double/triple knock at any action from the table below.
 
 > [!NOTE]
-> **Why the "unidentified developer" warning?** Bonk isn't notarized by Apple yet (that requires a $99/year developer account). The warning does **not** mean the app is unsafe — it means Apple hasn't scanned it. The entire source code is right here in this repo, and you can build it yourself with one command if you'd rather not trust the binary. To open it anyway: **right-click the app → Open → Open** (only needed the first time). If macOS says the app "is damaged", run `xattr -cr /Applications/Bonk.app` in Terminal once.
+> **Why the "unidentified developer" warning?** Bonk isn't notarized by Apple yet (that requires a $99/year developer account I can't afford 😔). The warning does **not** mean the app is unsafe — it means Apple hasn't scanned it. The entire source code is right here in this repo, and you can build it yourself with one command if you'd rather not trust the binary. To open it anyway: **right-click the app → Open → Open** (only needed the first time). If macOS says the app "is damaged", run `xattr -cr /Applications/Bonk.app` in Terminal once.
 
 **Requirements:** Apple Silicon MacBook (M1 or later — the accelerometer isn't exposed on Intel Macs or desktops), macOS 13+.
 
