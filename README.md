@@ -30,7 +30,7 @@ Knock up to four times in a row anywhere on your MacBook — palm rest, lid, nex
 2. Open it and drag **Bonk** into **Applications**.
 3. First launch: **right-click Bonk.app → Open → Open**. *(Once. See below for why.)*
 4. Grant **Accessibility** when asked — it's how Bonk presses keyboard shortcuts on your behalf (and how it notices you're typing so it can ignore those vibrations).
-5. A 👊 appears in your menu bar. Knock twice on your palm rest — your screen locks. That's just the out-of-the-box default: open **Settings** from the 👊 menu and point each knock pattern (single through quad) at any action from the table below.
+5. A 👊 appears in your menu bar. Knock twice on your palm rest — your screen locks. That's just the out-of-the-box default: open **Settings** from the 👊 menu and point each knock pattern (single knock through quadruple knocks) at any action from the table below.
 
 > [!NOTE]
 > **Why the "unidentified developer" warning?** Bonk isn't notarized by Apple yet (that requires a $99/year developer account I can't afford 😔). The warning does **not** mean the app is unsafe — it means Apple hasn't scanned it. The entire source code is right here in this repo, and you can build it yourself with one command if you'd rather not trust the binary. To open it anyway: **right-click the app → Open → Open** (only needed the first time). If macOS says the app "is damaged", run `xattr -cr /Applications/Bonk.app` in Terminal once.
@@ -58,7 +58,7 @@ Different apps, different knocks. A rule like *"when **Terminal** is frontmost, 
 ## Getting it dialed in
 
 - **Knock to Calibrate** — click it, knock 3× at your natural strength, done. The threshold is set to half your softest knock.
-- **Test mode** — detect and log knocks *without* firing any actions, so you can tune sensitivity risk-free (toggle in the menu bar or Settings).
+- **Test mode** — detect and log knocks *without* firing any actions, so you can tune sensitivity risk free (toggle in the menu bar or Settings).
 - **Live waveform** — Settings shows a real-time 100 Hz trace of chassis vibration with your threshold drawn on it, plus a detector status line that tells you *why* the last knock did or didn't count.
 - **Four sliders, each explained in-app** — sensitivity threshold, knock window, cooldown, and max knock duration.
 - Typing is automatically ignored (keystrokes suppress detection for 800 ms), and tilting/moving the laptop doesn't false-trigger thanks to a slow-adapting gravity baseline.
